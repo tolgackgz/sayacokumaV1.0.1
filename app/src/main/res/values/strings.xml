@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Fizibil Sayaç Okuma</string>
+    <string name="capture_button">Capture</string>
+    <string name="torch_button">Torch</string>
+    <string name="sayac">SAYAÇ</string>
+    <string name="test">TEST</string>
+</resources>
