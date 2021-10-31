@@ -2,37 +2,47 @@ package com.example.fizibil.sayacokuma
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.annotation.TargetApi
+import android.content.ContentValues
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.util.Size
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.AspectRatio
-import androidx.camera.core.CameraControl
-import androidx.camera.core.CameraInfo
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageCapture
-import androidx.camera.core.ImageCaptureException
-import androidx.camera.core.ImageProxy
-import androidx.camera.core.Preview
-import androidx.camera.core.TorchState
+import androidx.camera.core.*
+
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.constraintlayout.widget.StateSet.TAG
 import androidx.core.content.ContextCompat
 import com.example.fizibil.sayacokuma.databinding.MainActivityBinding
 import com.google.android.material.tabs.TabLayout
-import kotlinx.coroutines.*
+import org.opencv.android.InstallCallbackInterface
+import org.opencv.android.LoaderCallbackInterface
+import org.opencv.android.OpenCVLoader
 import java.nio.ByteBuffer
-import java.text.SimpleDateFormat
-import java.util.*
+
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+
+import android.graphics.*
+import android.view.Surface
+import android.view.Surface.ROTATION_90
+import android.widget.ImageView
+
+import androidx.camera.core.ImageProxy
+import org.opencv.android.Utils
+import org.opencv.core.CvType
+import org.opencv.core.Mat
+import org.opencv.imgproc.Imgproc
+import android.R.attr.data
+import org.opencv.core.CvException
+
+import org.opencv.core.Scalar
+
 
 @SuppressLint("RestrictedApi")
 class MainActivity : AppCompatActivity() {
@@ -42,7 +52,7 @@ class MainActivity : AppCompatActivity() {
 
     private var imagePreview: Preview? = null
 
-    private var imageAnalysis: ImageAnalysis? = null
+    //private var imageAnalysis: ImageAnalysis? = null
 
     private var imageCapture: ImageCapture? = null
 
@@ -54,7 +64,10 @@ class MainActivity : AppCompatActivity() {
 
     private var cameraProvider: ProcessCameraProvider? = null
 
-    private var bitmapCapture: Bitmap? = null
+    private var bitmap: Bitmap? = null
+
+    private var takeButton:Boolean = false
+
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,15 +86,16 @@ class MainActivity : AppCompatActivity() {
 
 
         binding.cameraCaptureButton.setOnClickListener {
+            takeButton=true
             takePicture()
-            if (bitmapCapture!== null) {
-                cameraProvider?.unbindAll()
-            }
         }
         initCameraModeSelector()
         binding.cameraTorchButton.setOnClickListener {
             toggleTorch()
         }
+
+        initOpenCV()
+
     }
 
     override fun onRequestPermissionsResult(
@@ -106,9 +120,13 @@ class MainActivity : AppCompatActivity() {
         ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
     }
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+
+
         cameraProvider = cameraProviderFuture.get()
+
         val cameraSelector = CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build()
         cameraProviderFuture.addListener({
             imagePreview = Preview.Builder().apply {
@@ -116,32 +134,50 @@ class MainActivity : AppCompatActivity() {
                 //setTargetRotation(binding.previewView.display.rotation)
             }.build()
 
-            imageAnalysis = ImageAnalysis.Builder().apply {
+
+            /*imageAnalysis = ImageAnalysis.Builder().apply {
                 setImageQueueDepth(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 setTargetResolution(Size(1280, 720))
+                setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
             }.build()
-            imageAnalysis?.setAnalyzer(cameraExecutor, LuminosityAnalyzer())
+            imageAnalysis?.setAnalyzer(cameraExecutor, ImageAnalysis.Analyzer { image ->
+                //takeGasMeter(image,takeButton)
+                image.close()
+
+            }) */
 
             imageCapture = ImageCapture.Builder().apply {
                 setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                 //setFlashMode(ImageCapture.FLASH_MODE_AUTO)
+                setTargetRotation(ROTATION_90)
             }.build()
 
 
             val cameraProvider = cameraProviderFuture.get()
-            val camera = cameraProvider.bindToLifecycle(
-                this,
-                cameraSelector,
-                imagePreview,
-                imageAnalysis,
-                imageCapture
-            )
-            binding.previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-            imagePreview?.setSurfaceProvider(binding.previewView.surfaceProvider)
-            cameraControl = camera.cameraControl
-            cameraInfo = camera.cameraInfo
-            setTorchStateObserver()
-            setZoomStateObserver()
+
+            // Must unbind the use-cases before rebinding them
+            cameraProvider.unbindAll()
+            try {
+                // A variable number of use-cases can be passed here -
+                // camera provides access to CameraControl & CameraInfo
+                val camera = cameraProvider.bindToLifecycle(
+                    this,
+                    cameraSelector,
+                    imagePreview,
+                    //imageAnalysis,
+                    imageCapture
+                )
+                binding.previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                imagePreview?.setSurfaceProvider(binding.previewView.surfaceProvider)
+                cameraControl = camera.cameraControl
+                cameraInfo = camera.cameraInfo
+                setTorchStateObserver()
+                setZoomStateObserver()
+            } catch (exc: Exception) {
+                Toast.makeText(this, "Something went wrong. Please try again.", Toast.LENGTH_SHORT).show()
+            }
+
+
         }, ContextCompat.getMainExecutor(this))
     }
 
@@ -185,6 +221,7 @@ class MainActivity : AppCompatActivity() {
                 when (tab?.position) {
                     SAYAC -> {
                         binding.cameraCaptureButton.setOnClickListener {
+                            takeButton=true
                             takePicture()
                         }
                     }
@@ -199,34 +236,52 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
+
     private fun takePicture() {
-        imageCapture?.takePicture( cameraExecutor, object :
+        imageCapture?.takePicture(cameraExecutor, object :
             ImageCapture.OnImageCapturedCallback() {
             override fun onCaptureSuccess(image: ImageProxy) {
+                //get bitmap from image
+                val matSayac = imageProxyToMat(image)
+
+                var bmp: Bitmap? = null
+                try {
+                    bmp = Bitmap.createBitmap(matSayac.cols(), matSayac.rows(), Bitmap.Config.ARGB_8888)
+                    Utils.matToBitmap(matSayac, bmp)
+                } catch (e: CvException) {
+                    Log.d("Exception", e.message!!)
+                }
+
+
+                val imageView: ImageView = findViewById(R.id.imageView)
+                runOnUiThread {
+                    imageView.setImageBitmap(bmp)
+                    cameraProvider?.unbindAll()
+                }
                 super.onCaptureSuccess(image)
-                bitmapCapture = imageProxyToBitmap(image)
-                Log.i("TAKE BITMAP","BITMAP GORUNTU ELDE EDILDI")
             }
 
             override fun onError(exception: ImageCaptureException) {
-                val msg = "Sayaç Yakalanamadı: ${exception.message}"
-                binding.previewView.post {
-                    Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
-                }
+                super.onError(exception)
             }
-        })
-    }
 
+        })
+
+
+    }
     /**
      *  convert image proxy to bitmap
      *  @param image
      */
-    private fun imageProxyToBitmap(image: ImageProxy): Bitmap {
+    private fun imageProxyToMat(image: ImageProxy): Mat {
         val planeProxy = image.planes[0]
         val buffer: ByteBuffer = planeProxy.buffer
         val bytes = ByteArray(buffer.remaining())
         buffer.get(bytes)
-        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        val mat = Mat(image.width, image.height, CvType.CV_64F)
+        mat.put(0, 0, data.toDouble())
+
+        return mat
     }
 
     private fun toggleTorch() {
@@ -258,42 +313,51 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private class LuminosityAnalyzer : ImageAnalysis.Analyzer {
-        private var lastAnalyzedTimestamp = 0L
+    ////////// OPENCV BASLATMA //////////
+    private fun initOpenCV() {
+        val engineInitialized = OpenCVLoader.initDebug()
+        if (engineInitialized){
+            Log.i(ContentValues.TAG, "The OpenCV was successfully initialized in debug mode using .so libs.")
+        } else {
+            OpenCVLoader.initAsync(
+                OpenCVLoader.OPENCV_VERSION_3_4_0,
+                this,
+                object : LoaderCallbackInterface {
+                    override fun onManagerConnected(status: Int) {
+                        when (status) {
+                            LoaderCallbackInterface.SUCCESS -> Log.d(
+                                ContentValues.TAG,
+                                "OpenCV successfully started."
+                            )
+                            LoaderCallbackInterface.INIT_FAILED -> Log.d(
+                                ContentValues.TAG,
+                                "Failed to start OpenCV."
+                            )
+                            LoaderCallbackInterface.MARKET_ERROR -> Log.d(
+                                ContentValues.TAG,
+                                "Google Play Store could not be invoked. Please check if you have the Google Play Store app installed and try again."
+                            )
+                            LoaderCallbackInterface.INSTALL_CANCELED -> Log.d(
+                                ContentValues.TAG,
+                                "OpenCV installation has been cancelled by the user."
+                            )
+                            LoaderCallbackInterface.INCOMPATIBLE_MANAGER_VERSION -> Log.d(
+                                ContentValues.TAG,
+                                "This version of OpenCV Manager is incompatible. Possibly, a service update is required."
+                            )
+                        }
+                    }
 
-        /**
-         * Helper extension function used to extract a byte array from an
-         * image plane buffer
-         */
-        private fun ByteBuffer.toByteArray(): ByteArray {
-            rewind()    // Rewind the buffer to zero
-            val data = ByteArray(remaining())
-            get(data)   // Copy the buffer into a byte array
-            return data // Return the byte array
-        }
-
-        override fun analyze(image: ImageProxy) {
-            image.imageInfo.rotationDegrees
-            val currentTimestamp = System.currentTimeMillis()
-            // Calculate the average luma no more often than every second
-            if (currentTimestamp - lastAnalyzedTimestamp >=
-                TimeUnit.SECONDS.toMillis(1)
-            ) {
-                // Since format in ImageAnalysis is YUV, image.planes[0]
-                // contains the Y (luminance) plane
-                val buffer = image.planes[0].buffer
-                // Extract image data from callback object
-                val data = buffer.toByteArray()
-                // Convert the data into an array of pixel values
-                val pixels = data.map { it.toInt() and 0xFF }
-                // Compute average luminance for the image
-                val luma = pixels.average()
-                // Log the new luma value
-                Log.d("CameraXApp", "Average luminosity: $luma")
-                // Update timestamp of last analyzed frame
-                lastAnalyzedTimestamp = currentTimestamp
-            }
-            image.close()
+                    override fun onPackageInstall(
+                        operation: Int,
+                        callback: InstallCallbackInterface?
+                    ) {
+                        Log.d(
+                            ContentValues.TAG,
+                            "OpenCV Manager successfully installed from Google Play."
+                        )
+                    }
+                })
         }
     }
 

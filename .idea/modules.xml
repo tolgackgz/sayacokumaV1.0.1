@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/sayacokuma.iml" filepath="$PROJECT_DIR$/.idea/modules/sayacokuma.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/OpenCVsdk/sayacokuma.OpenCVsdk.iml" filepath="$PROJECT_DIR$/.idea/modules/OpenCVsdk/sayacokuma.OpenCVsdk.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/sayacokuma.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/sayacokuma.app.iml" />
     </modules>
   </component>

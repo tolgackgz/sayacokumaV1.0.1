@@ -1,2 +1,6 @@
-include ':app'
 rootProject.name='sayacokuma'
+include ':app'
+include ':OpenCVsdk'
+
+
+
