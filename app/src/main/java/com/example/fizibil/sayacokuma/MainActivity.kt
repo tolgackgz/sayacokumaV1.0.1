@@ -8,7 +8,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.util.Size
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -23,25 +22,14 @@ import com.google.android.material.tabs.TabLayout
 import org.opencv.android.InstallCallbackInterface
 import org.opencv.android.LoaderCallbackInterface
 import org.opencv.android.OpenCVLoader
-import java.nio.ByteBuffer
 
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 
 import android.graphics.*
-import android.view.Surface
-import android.view.Surface.ROTATION_90
 import android.widget.ImageView
+import android.util.Size
+import android.view.View
 
-import androidx.camera.core.ImageProxy
-import org.opencv.android.Utils
-import org.opencv.core.CvType
-import org.opencv.core.Mat
-import org.opencv.imgproc.Imgproc
-import android.R.attr.data
-import org.opencv.core.CvException
-
-import org.opencv.core.Scalar
 
 
 @SuppressLint("RestrictedApi")
@@ -52,10 +40,6 @@ class MainActivity : AppCompatActivity() {
 
     private var imagePreview: Preview? = null
 
-    //private var imageAnalysis: ImageAnalysis? = null
-
-    private var imageCapture: ImageCapture? = null
-
     private var cameraControl: CameraControl? = null
 
     private var cameraInfo: CameraInfo? = null
@@ -64,9 +48,7 @@ class MainActivity : AppCompatActivity() {
 
     private var cameraProvider: ProcessCameraProvider? = null
 
-    private var bitmap: Bitmap? = null
-
-    private var takeButton:Boolean = false
+    private var bmp: Bitmap? = null
 
 
 
@@ -86,7 +68,6 @@ class MainActivity : AppCompatActivity() {
 
 
         binding.cameraCaptureButton.setOnClickListener {
-            takeButton=true
             takePicture()
         }
         initCameraModeSelector()
@@ -130,28 +111,10 @@ class MainActivity : AppCompatActivity() {
         val cameraSelector = CameraSelector.Builder().requireLensFacing(CameraSelector.LENS_FACING_BACK).build()
         cameraProviderFuture.addListener({
             imagePreview = Preview.Builder().apply {
-                setTargetAspectRatio(AspectRatio.RATIO_16_9)
+                //setTargetAspectRatio(AspectRatio.RATIO_16_9)
+                setTargetResolution(Size(1280, 720))
                 //setTargetRotation(binding.previewView.display.rotation)
             }.build()
-
-
-            /*imageAnalysis = ImageAnalysis.Builder().apply {
-                setImageQueueDepth(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                setTargetResolution(Size(1280, 720))
-                setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
-            }.build()
-            imageAnalysis?.setAnalyzer(cameraExecutor, ImageAnalysis.Analyzer { image ->
-                //takeGasMeter(image,takeButton)
-                image.close()
-
-            }) */
-
-            imageCapture = ImageCapture.Builder().apply {
-                setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                //setFlashMode(ImageCapture.FLASH_MODE_AUTO)
-                setTargetRotation(ROTATION_90)
-            }.build()
-
 
             val cameraProvider = cameraProviderFuture.get()
 
@@ -163,9 +126,7 @@ class MainActivity : AppCompatActivity() {
                 val camera = cameraProvider.bindToLifecycle(
                     this,
                     cameraSelector,
-                    imagePreview,
-                    //imageAnalysis,
-                    imageCapture
+                    imagePreview
                 )
                 binding.previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                 imagePreview?.setSurfaceProvider(binding.previewView.surfaceProvider)
@@ -221,8 +182,6 @@ class MainActivity : AppCompatActivity() {
                 when (tab?.position) {
                     SAYAC -> {
                         binding.cameraCaptureButton.setOnClickListener {
-                            takeButton=true
-                            takePicture()
                         }
                     }
                     TEST -> {
@@ -236,52 +195,39 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
+    private fun View.showOrGone(show: Boolean) {
+        visibility = if(show) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+    }
 
     private fun takePicture() {
-        imageCapture?.takePicture(cameraExecutor, object :
-            ImageCapture.OnImageCapturedCallback() {
-            override fun onCaptureSuccess(image: ImageProxy) {
-                //get bitmap from image
-                val matSayac = imageProxyToMat(image)
+        val view: View = findViewById(R.id.cameraSayacView)
+        val imageView: ImageView = findViewById(R.id.imageView)
+        val previewView: PreviewView = findViewById(R.id.previewView)
 
-                var bmp: Bitmap? = null
-                try {
-                    bmp = Bitmap.createBitmap(matSayac.cols(), matSayac.rows(), Bitmap.Config.ARGB_8888)
-                    Utils.matToBitmap(matSayac, bmp)
-                } catch (e: CvException) {
-                    Log.d("Exception", e.message!!)
-                }
+        stopCamera()
+        val cameraBmp=previewView.bitmap
 
+        var location = IntArray(2)
+        view.getLocationOnScreen(location)
+        val xx = location[0]
+        val yy = location[1]
+        println("View Koordinatları: $xx ve $yy")
 
-                val imageView: ImageView = findViewById(R.id.imageView)
-                runOnUiThread {
-                    imageView.setImageBitmap(bmp)
-                    cameraProvider?.unbindAll()
-                }
-                super.onCaptureSuccess(image)
-            }
+        val fiziBmp =Bitmap.createBitmap(cameraBmp!!, xx,yy,view.width, view.height)
 
-            override fun onError(exception: ImageCaptureException) {
-                super.onError(exception)
-            }
-
-        })
+        runOnUiThread {
+            imageView.setImageBitmap(fiziBmp)
+        }
 
 
     }
-    /**
-     *  convert image proxy to bitmap
-     *  @param image
-     */
-    private fun imageProxyToMat(image: ImageProxy): Mat {
-        val planeProxy = image.planes[0]
-        val buffer: ByteBuffer = planeProxy.buffer
-        val bytes = ByteArray(buffer.remaining())
-        buffer.get(bytes)
-        val mat = Mat(image.width, image.height, CvType.CV_64F)
-        mat.put(0, 0, data.toDouble())
 
-        return mat
+    private fun stopCamera(){
+        cameraProvider?.unbind(imagePreview)
     }
 
     private fun toggleTorch() {
