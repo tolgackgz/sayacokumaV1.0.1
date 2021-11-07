@@ -24,11 +24,11 @@
 
     <View
         android:id="@+id/cameraSayacView"
-        android:layout_width="300dp"
-        android:layout_height="178dp"
+        android:layout_width="310dp"
+        android:layout_height="180dp"
         android:layout_marginStart="3dp"
         android:layout_marginBottom="120dp"
-        android:background="#276200EE"
+        android:background="@drawable/fizi_reader_square"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.5"
@@ -38,15 +38,15 @@
     <View
         android:id="@+id/cameraBottomView2"
         android:layout_width="300px"
-        android:layout_height="75px"
-        android:layout_marginEnd="8dp"
+        android:layout_height="60px"
+        android:layout_marginEnd="10dp"
         android:background="#26FF5722"
         app:layout_constraintBottom_toBottomOf="@+id/cameraSayacView"
         app:layout_constraintEnd_toEndOf="@+id/cameraSayacView"
-        app:layout_constraintHorizontal_bias="0.1"
+        app:layout_constraintHorizontal_bias="0.2"
         app:layout_constraintStart_toStartOf="@+id/cameraSayacView"
         app:layout_constraintTop_toTopOf="@+id/cameraSayacView"
-        app:layout_constraintVertical_bias="0.9" />
+        app:layout_constraintVertical_bias="0.75" />
 
 
     <ImageButton

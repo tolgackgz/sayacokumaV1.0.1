@@ -3,4 +3,5 @@
     <color name="colorPrimary">#b31839</color>
     <color name="colorOnPrimary">#FFF</color>
     <color name="white">#FFF</color>
+    <color name="fizi_reader_square">#b31839</color>
 </resources>

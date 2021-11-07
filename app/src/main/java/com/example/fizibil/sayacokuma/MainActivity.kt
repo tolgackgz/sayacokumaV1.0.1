@@ -69,7 +69,15 @@ class MainActivity : AppCompatActivity() {
 
     private var imagePreview: Preview? = null
 
+    private var imageView: ImageView? = null
+
+    private var view: View? = null
+
+    private var previewView: PreviewView? = null
+
     private var imageCapture: ImageCapture? = null
+
+    private var cameraBottomView2: View?= null
 
     private var cameraControl: CameraControl? = null
 
@@ -203,7 +211,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun initCameraModeSelector() {
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabReselected(tab: TabLayout.Tab?) {}
+            override fun onTabReselected(tab: TabLayout.Tab?) {
+                startCamera()
+                view?.visibility = View.VISIBLE
+                imageView!!.visibility = View.GONE
+                cameraBottomView2!!.visibility= View.VISIBLE
+            }
 
             override fun onTabUnselected(tab: TabLayout.Tab?) {}
 
@@ -224,33 +237,30 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun View.showOrGone(show: Boolean) {
-        visibility = if(show) {
-            View.VISIBLE
-        } else {
-            View.GONE
-        }
-    }
-
     private fun takePicture() {
         imageCapture?.takePicture(cameraExecutor, object : ImageCapture.OnImageCapturedCallback() {
             @SuppressLint("UnsafeOptInUsageError")
             override fun onCaptureSuccess(imageProxy: ImageProxy) {
-                val previewView: PreviewView = findViewById(R.id.previewView)
-                val imageView: ImageView = findViewById(R.id.imageView)
-                val view: View = findViewById(R.id.cameraSayacView)
+                previewView = findViewById(R.id.previewView)
+                imageView = findViewById(R.id.imageView)
+                view = findViewById(R.id.cameraSayacView)
+                cameraBottomView2 = findViewById(R.id.cameraBottomView2)
+
 
                 val rotationDegrees = imageProxy.imageInfo.rotationDegrees
                 val cameraImg = imageProxy.image
 
                 val inputImage = InputImage.fromMediaImage(cameraImg, rotationDegrees).bitmapInternal
 
-                val fiziBmp =croppedImage(inputImage, previewView, view, 0f)
+                val fiziBmp =croppedImage(inputImage, previewView!!, view!!, 0f)
 
                 fiziMeterCV(fiziBmp)
 
                 runOnUiThread {
-                    imageView.setImageBitmap(fiziBmp)
+                    imageView!!.setImageBitmap(fiziBmp)
+                    imageView?.visibility = View.VISIBLE
+                    view?.visibility = View.GONE
+                    cameraBottomView2?.visibility= View.GONE
                 }
 
                 imageProxy.close()
