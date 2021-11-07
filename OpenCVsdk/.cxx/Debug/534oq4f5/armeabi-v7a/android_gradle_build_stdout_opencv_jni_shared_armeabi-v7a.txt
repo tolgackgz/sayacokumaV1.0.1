@@ -1,0 +1,2 @@
+ninja: Entering directory `D:\Users\acikg\OneDrive\Desktop\GitHub\sayacokuma\OpenCVsdk\.cxx\Debug\534oq4f5\armeabi-v7a'
+ninja: no work to do.

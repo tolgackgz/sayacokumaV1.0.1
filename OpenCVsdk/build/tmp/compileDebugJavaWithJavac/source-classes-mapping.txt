@@ -49,8 +49,6 @@ org/opencv/calib3d/StereoBM.java
  org.opencv.calib3d.StereoBM
 org/opencv/calib3d/UsacParams.java
  org.opencv.calib3d.UsacParams
-org/opencv/video/TrackerDaSiamRPN.java
- org.opencv.video.TrackerDaSiamRPN
 org/opencv/core/RotatedRect.java
  org.opencv.core.RotatedRect
 org/opencv/videoio/VideoWriter.java
@@ -350,7 +348,5 @@ org/opencv/ml/StatModel.java
  org.opencv.ml.StatModel
 org/opencv/core/Point.java
  org.opencv.core.Point
-org/opencv/video/TrackerDaSiamRPN_Params.java
- org.opencv.video.TrackerDaSiamRPN_Params
 org/opencv/ml/SVM.java
  org.opencv.ml.SVM

@@ -1,0 +1,3 @@
+D:/Users/acikg/OneDrive/Desktop/GitHub/sayacokuma/OpenCVsdk/.cxx/Debug/534oq4f5/armeabi-v7a/CMakeFiles/opencv_jni_shared.dir
+D:/Users/acikg/OneDrive/Desktop/GitHub/sayacokuma/OpenCVsdk/.cxx/Debug/534oq4f5/armeabi-v7a/CMakeFiles/edit_cache.dir
+D:/Users/acikg/OneDrive/Desktop/GitHub/sayacokuma/OpenCVsdk/.cxx/Debug/534oq4f5/armeabi-v7a/CMakeFiles/rebuild_cache.dir
