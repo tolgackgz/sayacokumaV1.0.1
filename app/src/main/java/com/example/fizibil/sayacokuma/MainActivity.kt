@@ -42,6 +42,9 @@ import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 import java.util.ArrayList
 import android.R.attr.bitmap
+import android.media.Image
+import android.util.DisplayMetrics
+import android.view.Surface
 import android.view.TextureView
 import com.google.mlkit.vision.common.InputImage
 
@@ -57,6 +60,7 @@ import org.tensorflow.lite.support.image.ops.ResizeOp
 import org.tensorflow.lite.support.image.ops.ResizeWithCropOrPadOp
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
 import java.nio.ByteBuffer
+import kotlin.math.roundToInt
 
 
 //@SuppressLint("RestrictedApi")
@@ -159,6 +163,7 @@ class MainActivity : AppCompatActivity() {
             imageCapture = ImageCapture.Builder().apply {
                 setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                 setTargetAspectRatio(AspectRatio.RATIO_16_9)
+                //setTargetResolution(Size(1280, 720))
             }.build()
 
             val cameraProvider = cameraProviderFuture.get()
@@ -237,6 +242,31 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
+    private fun cropPreviewBitmap(previewBitmap: Bitmap, deviceWidthPx: Int, deviceHeightPx: Int): Bitmap {
+
+        // crop the image
+        var cropHeightPx = 0f
+        var cropWidthPx = 0f
+        if(deviceHeightPx > deviceWidthPx) {
+            cropHeightPx = 1.0f *previewBitmap.height
+            cropWidthPx = 1.0f * deviceWidthPx / deviceHeightPx * cropHeightPx
+        }else {
+            cropWidthPx = 1.0f *previewBitmap.width
+            cropHeightPx = 1.0f * deviceHeightPx / deviceWidthPx * cropWidthPx
+        }
+
+        val cx = previewBitmap.width / 2
+        val cy = previewBitmap.height / 2
+
+        val minimusPx = Math.min(cropHeightPx, cropWidthPx)
+        val left2 = cx - minimusPx / 2
+        val top2 = cy - minimusPx  /2
+
+        val croppedBitmap = Bitmap.createBitmap(previewBitmap, left2.toInt(), top2.toInt(), minimusPx.toInt(), minimusPx.toInt())
+        return croppedBitmap
+    }
+
+
     private fun takePicture() {
         imageCapture?.takePicture(cameraExecutor, object : ImageCapture.OnImageCapturedCallback() {
             @SuppressLint("UnsafeOptInUsageError")
@@ -246,13 +276,29 @@ class MainActivity : AppCompatActivity() {
                 view = findViewById(R.id.cameraSayacView)
                 cameraBottomView2 = findViewById(R.id.cameraBottomView2)
 
+                val metrics: DisplayMetrics = DisplayMetrics().also { previewView!!.display.getRealMetrics(it) }
+                val deviceWidthPx = metrics.widthPixels
+                val deviceHeightPx = metrics.heightPixels
+
+                println("deviceWidthPx:$deviceWidthPx,deviceHeightPx: $deviceHeightPx")
 
                 val rotationDegrees = imageProxy.imageInfo.rotationDegrees
                 val cameraImg = imageProxy.image
 
-                val inputImage = InputImage.fromMediaImage(cameraImg, rotationDegrees).bitmapInternal
+                //val inputImage = InputImage.fromMediaImage(cameraImg, rotationDegrees).bitmapInternal
 
-                val fiziBmp =croppedImage(inputImage, previewView!!, view!!, 0f)
+                val inputImage=imageToBitmap(cameraImg!!)
+
+                val sizedBitmapWidth = inputImage.resizeByWidth(previewView!!.width)
+                val sizedBitmapHeight=sizedBitmapWidth.resizeByHeight(previewView!!.height)
+
+
+                println("IMAGEPROXY RES: H:${inputImage.height} X W: ${inputImage.width}")
+                println("PREVIEWVIEW  RES: H:${previewView!!.height} X W: ${previewView!!.width}")
+                println("VIEW  RES: H:${view!!.height} X W: ${view!!.width}")
+                println("VIEW  LEFT:${view!!.left} X TOP: ${view!!.top}")
+
+                val fiziBmp =croppedImage(sizedBitmapHeight, previewView!!, view!!, rotationDegrees.toFloat())
 
                 fiziMeterCV(fiziBmp)
 
@@ -275,6 +321,32 @@ class MainActivity : AppCompatActivity() {
         })
 
 
+    }
+    // Extension function to resize bitmap using new width value by keeping aspect ratio
+    private fun Bitmap.resizeByWidth(width: Int):Bitmap{
+        val ratio:Float = this.width.toFloat() / this.height.toFloat()
+        val height:Int = (width / ratio).roundToInt()
+
+        return Bitmap.createScaledBitmap(
+            this,
+            width,
+            height,
+            false
+        )
+    }
+
+
+    // Extension function to resize bitmap using new height value by keeping aspect ratio
+    private fun Bitmap.resizeByHeight(height: Int):Bitmap{
+        val ratio:Float = this.height.toFloat() / this.width.toFloat()
+        val width:Int = (height / ratio).roundToInt()
+
+        return Bitmap.createScaledBitmap(
+            this,
+            width,
+            height,
+            false
+        )
     }
 
     private fun fiziMeterCV(fiziBmp: Bitmap ){
@@ -367,20 +439,27 @@ class MainActivity : AppCompatActivity() {
         cameraProvider?.unbind(imagePreview)
     }
 
+    private fun imageToBitmap(image: Image): Bitmap {
+        val buffer = image.planes[0].buffer
+        val bytes = ByteArray(buffer.capacity())
+        buffer.get(bytes)
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, null)
+    }
+
     private fun croppedImage(source: Bitmap, frame: PreviewView, reference: View, angle: Float): Bitmap {
         val matrix = Matrix()
         matrix.postRotate(angle)
 
-        val heightOriginal = frame.height
-        val widthOriginal = frame.width
-        val heightFrame = reference.height
-        val widthFrame = reference.width
-        val leftFrame = reference.left
-        val topFrame = reference.top
+        val heightOriginal = frame.width
+        val widthOriginal = frame.height
+        val heightFrame = reference.width
+        val widthFrame = reference.height
+        val leftFrame = reference.top
+        val topFrame = reference.left
         val heightReal = source.height
         val widthReal = source.width
         val widthFinal = widthFrame * widthReal / widthOriginal
-        val heightFinal = heightFrame * heightReal / heightOriginal
+        val heightFinal = heightFrame* heightReal / heightOriginal
         val leftFinal = leftFrame * widthReal / widthOriginal
         val topFinal = topFrame * heightReal / heightOriginal
 
